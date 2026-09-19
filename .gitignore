@@ -1,0 +1,5 @@
+JuceLibraryCode/
+Builds/*/x64/
+Builds/*/Debug/
+Builds/*/Release/
+.vs/
