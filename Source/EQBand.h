@@ -33,6 +33,7 @@ public:
     void prepare (const juce::dsp::ProcessSpec& spec)
     {
         sampleRate = spec.sampleRate;
+		filter.state = new juce::dsp::IIR::Coefficients<float> (1.0f,0.0f,0.0f,1.0f,0.0f,0.0f);
         filter.prepare (spec);
         forceUpdate = true;
         reset();
@@ -61,7 +62,7 @@ public:
 
         if (changed)
         {
-            filter.state = makeCoefficients (sampleRate, type, freqHz, gainDb, q);
+            *filter.state = makeArrayCoefficients (sampleRate, type, freqHz, gainDb, q);
             forceUpdate = false;
         }
     }
@@ -75,43 +76,25 @@ public:
         filter.process (context);
     }
 
-    //==============================================================================
-    /** Az egyutthato-szamitas. Statikus, hogy a GUI (frekvenciamenet-gorbe) is
-        hasznalhassa anelkul, hogy az audio szal allapotahoz nyulna. */
-    static juce::dsp::IIR::Coefficients<float>::Ptr makeCoefficients (double sampleRate,
-                                                                      Type   type,
-                                                                      float  freqHz,
-                                                                      float  gainDb,
-                                                                      float  q)
+    static std::array<float, 6> makeArrayCoefficients(double sampleRate, Type type,
+        float freqHz, float gainDb, float q)
     {
-        // A bilinearis transzformacio miatt a frekvenciat a Nyquist ala kell szoritani.
+        using AC = juce::dsp::IIR::ArrayCoefficients<float>;
         const auto nyquist = sampleRate * 0.5;
-        const auto freq    = juce::jlimit (10.0, nyquist * 0.99, (double) freqHz);
-        const auto quality = juce::jlimit (0.05, 30.0, (double) q);
-        const auto linGain = juce::Decibels::decibelsToGain ((double) gainDb);
+        const auto freq = juce::jlimit(10.0, nyquist * 0.99, (double)freqHz);
+        const auto quality = juce::jlimit(0.05, 30.0, (double)q);
+        const auto linGain = (float)juce::Decibels::decibelsToGain((double)gainDb);
 
         switch (type)
         {
-            case Type::HighPass:
-                return juce::dsp::IIR::Coefficients<float>::makeHighPass (sampleRate, freq, quality);
-
-            case Type::LowShelf:
-                return juce::dsp::IIR::Coefficients<float>::makeLowShelf (sampleRate, freq, quality, (float) linGain);
-
-            case Type::Bell:
-                return juce::dsp::IIR::Coefficients<float>::makePeakFilter (sampleRate, freq, quality, (float) linGain);
-
-            case Type::Notch:
-                return juce::dsp::IIR::Coefficients<float>::makeNotch (sampleRate, freq, quality);
-
-            case Type::HighShelf:
-                return juce::dsp::IIR::Coefficients<float>::makeHighShelf (sampleRate, freq, quality, (float) linGain);
-
-            case Type::LowPass:
-                return juce::dsp::IIR::Coefficients<float>::makeLowPass (sampleRate, freq, quality);
+        case Type::HighPass:  return AC::makeHighPass(sampleRate, freq, quality);
+        case Type::LowShelf:  return AC::makeLowShelf(sampleRate, freq, quality, linGain);
+        case Type::Bell:      return AC::makePeakFilter(sampleRate, freq, quality, linGain);
+        case Type::Notch:     return AC::makeNotch(sampleRate, freq, quality);
+        case Type::HighShelf: return AC::makeHighShelf(sampleRate, freq, quality, linGain);
+        case Type::LowPass:   return AC::makeLowPass(sampleRate, freq, quality);
         }
-
-        return juce::dsp::IIR::Coefficients<float>::makeAllPass (sampleRate, freq, quality);
+        return AC::makeAllPass(sampleRate, freq, quality);
     }
 
 private:
