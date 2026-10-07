@@ -76,6 +76,46 @@ public:
         filter.process (context);
     }
 
+    //==============================================================================
+    /** Az egyutthato-szamitas. Statikus, hogy a GUI (frekvenciamenet-gorbe) is
+        hasznalhassa anelkul, hogy az audio szal allapotahoz nyulna. */
+    static juce::dsp::IIR::Coefficients<float>::Ptr makeArCoefficients (double sampleRate,
+                                                                      Type   type,
+                                                                      float  freqHz,
+                                                                      float  gainDb,
+                                                                      float  q)
+    {
+        // A bilinearis transzformacio miatt a frekvenciat a Nyquist ala kell szoritani.
+        const auto nyquist = sampleRate * 0.5;
+        const auto freq    = juce::jlimit (10.0, nyquist * 0.99, (double) freqHz);
+        const auto quality = juce::jlimit (0.05, 30.0, (double) q);
+        const auto linGain = juce::Decibels::decibelsToGain ((double) gainDb);
+
+        switch (type)
+        {
+            case Type::HighPass:
+                return juce::dsp::IIR::Coefficients<float>::makeHighPass (sampleRate, freq, quality);
+
+            case Type::LowShelf:
+                return juce::dsp::IIR::Coefficients<float>::makeLowShelf (sampleRate, freq, quality, (float) linGain);
+
+            case Type::Bell:
+                return juce::dsp::IIR::Coefficients<float>::makePeakFilter (sampleRate, freq, quality, (float) linGain);
+
+            case Type::Notch:
+                return juce::dsp::IIR::Coefficients<float>::makeNotch (sampleRate, freq, quality);
+
+            case Type::HighShelf:
+                return juce::dsp::IIR::Coefficients<float>::makeHighShelf (sampleRate, freq, quality, (float) linGain);
+
+            case Type::LowPass:
+                return juce::dsp::IIR::Coefficients<float>::makeLowPass (sampleRate, freq, quality);
+        }
+
+        return juce::dsp::IIR::Coefficients<float>::makeAllPass (sampleRate, freq, quality);
+    }
+
+	// Segédfüggvény, ami a ProcessorDuplicator-hoz kell, mert az csak std::array<float,6>-ot tud kezelni.
     static std::array<float, 6> makeArrayCoefficients(double sampleRate, Type type,
         float freqHz, float gainDb, float q)
     {
