@@ -128,6 +128,7 @@ void EQ3AudioProcessor::updateBandsFromParameters()
 
 void EQ3AudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
+    // Kotelezo: kikapcsolja a denormal szamokat, amik brutalisan lassithatjak az IIR szurot.
     juce::ScopedNoDenormals noDenormals;
 
     const auto totalNumInputChannels = getTotalNumInputChannels();
