@@ -10,9 +10,6 @@
     Csak az APVTS parametereit olvassa es irja; az audio szallal egyedul
     a zarolas nelkuli analizator-soron keresztul erintkezik (readAnalyserSamples).
 */
-
-#pragma once
-
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
@@ -112,4 +109,3 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EQDisplay)
 };
-#pragma once

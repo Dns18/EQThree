@@ -176,7 +176,8 @@ void EQDisplay::buildSpectrumPath()
         const auto f0 = freqForX(x);
         const auto f1 = freqForX(x + 2.0f);
         const auto tilt = specTiltDb * std::log2(f0 / 1000.0f);   // +3 dB/oktav 1 kHz-tol felfele
-        spectrumPath.lineTo(x, yForSpecDb(spectrumDbAt(f0, f1) + tilt));
+        const auto db = spectrumDbAt(f0, f1);
+        spectrumPath.lineTo(x, yForSpecDb(db > specMinDb ? db + tilt : specMinDb));
     }
 
     spectrumPath.lineTo(area.getRight(), area.getBottom());
