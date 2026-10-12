@@ -30,16 +30,19 @@ public:
     }
 
     // Csak ezeknel a tipusoknal van ertelme az erositesnek (gain).
-    static bool typeHasGain(Type t)
+    static bool typeHasGain (Type t)
     {
         return t == Type::LowShelf || t == Type::Bell || t == Type::HighShelf;
     }
 
     //==============================================================================
-    void prepare(const juce::dsp::ProcessSpec& spec)
+    void prepare (const juce::dsp::ProcessSpec& spec)
     {
+        // Fontos: a filter.state mutatot NEM csereljuk le. A ProcessorDuplicator
+        // konstruktora mar letrehozta, es a csatornankenti szurok ezt az egy
+        // objektumot hasznaljak. Ha lecserelnenk, a szurok a regin maradnanak.
         sampleRate = spec.sampleRate;
-        filter.prepare(spec);
+        filter.prepare (spec);
         forceUpdate = true;
         reset();
     }
@@ -49,83 +52,87 @@ public:
         filter.reset();
     }
 
-    void setParameters(Type newType, float newFreqHz, float newGainDb, float newQ, bool newEnabled)
+    /** Beallitja a sav parametereit. Az egyutthatokat csak akkor szamolja ujra,
+        ha tenylegesen valtozott valami - ez blokkonkent sok felesleges munkat sporol meg. */
+    void setParameters (Type newType, float newFreqHz, float newGainDb, float newQ, bool newEnabled)
     {
         const bool changed = forceUpdate
-            || newType != type
-            || newFreqHz != freqHz
-            || newGainDb != gainDb
-            || newQ != q;
+                          || newType    != type
+                          || newFreqHz  != freqHz
+                          || newGainDb  != gainDb
+                          || newQ       != q;
 
         enabled = newEnabled;
-        type = newType;
-        freqHz = newFreqHz;
-        gainDb = newGainDb;
-        q = newQ;
+        type    = newType;
+        freqHz  = newFreqHz;
+        gainDb  = newGainDb;
+        q       = newQ;
 
         if (changed)
         {
-            *filter.state = makeArrayCoefficients(sampleRate, type, freqHz, gainDb, q);
+            // A meglevo objektum tartalmat irjuk felul -> nincs memoriafoglalas az audio szalon.
+            *filter.state = makeArrayCoefficients (sampleRate, type, freqHz, gainDb, q);
             forceUpdate = false;
         }
     }
 
-    void process(juce::dsp::AudioBlock<float>& block)
+    void process (juce::dsp::AudioBlock<float>& block)
     {
-        if (!enabled)
+        if (! enabled)
             return;
 
-        juce::dsp::ProcessContextReplacing<float> context(block);
-        filter.process(context);
+        juce::dsp::ProcessContextReplacing<float> context (block);
+        filter.process (context);
     }
 
     //==============================================================================
     /** Az egyutthato-szamitas objektumkent (heap-en). Csak a GUI hasznalja
         (frekvenciamenet-gorbe), az audio szal soha. */
-    static juce::dsp::IIR::Coefficients<float>::Ptr makeCoefficients(double sampleRate,
-        Type   type,
-        float  freqHz,
-        float  gainDb,
-        float  q)
+    static juce::dsp::IIR::Coefficients<float>::Ptr makeCoefficients (double sampleRate,
+                                                                      Type   type,
+                                                                      float  freqHz,
+                                                                      float  gainDb,
+                                                                      float  q)
     {
-        return new juce::dsp::IIR::Coefficients<float>(makeArrayCoefficients(sampleRate, type, freqHz, gainDb, q));
+        return new juce::dsp::IIR::Coefficients<float> (makeArrayCoefficients (sampleRate, type, freqHz, gainDb, q));
     }
 
     /** Foglalasmentes egyutthato-szamitas az audio szalhoz (std::array, nincs heap). */
-    static std::array<float, 6> makeArrayCoefficients(double sampleRate, Type type,
-        float freqHz, float gainDb, float q)
+    static std::array<float, 6> makeArrayCoefficients (double sampleRate, Type type,
+                                                       float freqHz, float gainDb, float q)
     {
         using AC = juce::dsp::IIR::ArrayCoefficients<float>;
 
-        const auto nyquist = (float)(sampleRate * 0.5);
-        const auto freq = juce::jlimit(10.0f, nyquist * 0.99f, freqHz);
-        const auto quality = juce::jlimit(0.05f, 30.0f, q);
-        const auto linGain = juce::Decibels::decibelsToGain(gainDb);
+        // A bilinearis transzformacio miatt a frekvenciat a Nyquist ala kell szoritani.
+        const auto nyquist = (float) (sampleRate * 0.5);
+        const auto freq    = juce::jlimit (10.0f, nyquist * 0.99f, freqHz);
+        const auto quality = juce::jlimit (0.05f, 30.0f, q);
+        const auto linGain = juce::Decibels::decibelsToGain (gainDb);
 
         switch (type)
         {
-        case Type::HighPass:  return AC::makeHighPass(sampleRate, freq, quality);
-        case Type::LowShelf:  return AC::makeLowShelf(sampleRate, freq, quality, linGain);
-        case Type::Bell:      return AC::makePeakFilter(sampleRate, freq, quality, linGain);
-        case Type::Notch:     return AC::makeNotch(sampleRate, freq, quality);
-        case Type::HighShelf: return AC::makeHighShelf(sampleRate, freq, quality, linGain);
-        case Type::LowPass:   return AC::makeLowPass(sampleRate, freq, quality);
+            case Type::HighPass:  return AC::makeHighPass   (sampleRate, freq, quality);
+            case Type::LowShelf:  return AC::makeLowShelf   (sampleRate, freq, quality, linGain);
+            case Type::Bell:      return AC::makePeakFilter (sampleRate, freq, quality, linGain);
+            case Type::Notch:     return AC::makeNotch      (sampleRate, freq, quality);
+            case Type::HighShelf: return AC::makeHighShelf  (sampleRate, freq, quality, linGain);
+            case Type::LowPass:   return AC::makeLowPass    (sampleRate, freq, quality);
         }
 
-        return AC::makeAllPass(sampleRate, freq, quality);
+        return AC::makeAllPass (sampleRate, freq, quality);
     }
 
 private:
     using Duplicator = juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>,
-        juce::dsp::IIR::Coefficients<float>>;
+                                                      juce::dsp::IIR::Coefficients<float>>;
 
     Duplicator filter;
 
     double sampleRate = 44100.0;
-    Type   type = Type::Bell;
-    float  freqHz = 1000.0f;
-    float  gainDb = 0.0f;
-    float  q = 0.707f;
-    bool   enabled = true;
+    Type   type       = Type::Bell;
+    float  freqHz     = 1000.0f;
+    float  gainDb     = 0.0f;
+    float  q          = 0.707f;
+    bool   enabled    = true;
     bool   forceUpdate = true;
 };

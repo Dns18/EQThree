@@ -7,6 +7,9 @@
               pluginManufacturerCode="Szkd" pluginCode="Eq3a" pluginVST3Category="EQ,Fx">
   <MAINGROUP id="Nvu8dZ" name="EQThree">
     <GROUP id="{A63314E5-3858-16FA-3FF9-354CD0C945D9}" name="Source">
+      <FILE id="t4sHVB" name="EQDisplay.cpp" compile="1" resource="0" file="Source/EQDisplay.cpp"/>
+      <FILE id="Ephdmd" name="EQLookAndFeel.h" compile="0" resource="0" file="Source/EQLookAndFeel.h"/>
+      <FILE id="zMNp53" name="EQDisplay.h" compile="0" resource="0" file="Source/EQDisplay.h"/>
       <FILE id="qKorAK" name="EQBand.h" compile="0" resource="0" file="Source/EQBand.h"/>
       <FILE id="Xx8q3v" name="PluginProcessor.cpp" compile="1" resource="0"
             file="Source/PluginProcessor.cpp"/>
