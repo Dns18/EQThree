@@ -7,9 +7,9 @@
 
 //==============================================================================
 EQ3AudioProcessor::EQ3AudioProcessor()
-    : AudioProcessor (BusesProperties()
-                          .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                          .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
+    : AudioProcessor(BusesProperties()
+        .withInput("Input", juce::AudioChannelSet::stereo(), true)
+        .withOutput("Output", juce::AudioChannelSet::stereo(), true))
 {
 }
 
@@ -28,67 +28,67 @@ juce::AudioProcessorValueTreeState::ParameterLayout EQ3AudioProcessor::createPar
 
     for (int i = 0; i < numBands; ++i)
     {
-        const auto bandName = "Band " + String (i + 1) + " ";
+        const auto bandName = "Band " + String(i + 1) + " ";
 
-        layout.add (std::make_unique<AudioParameterBool> (
-            ParameterID { bandParamID (i, "on"), 1 },
+        layout.add(std::make_unique<AudioParameterBool>(
+            ParameterID{ bandParamID(i, "on"), 1 },
             bandName + "On",
             true));
 
-        layout.add (std::make_unique<AudioParameterChoice> (
-            ParameterID { bandParamID (i, "type"), 1 },
+        layout.add(std::make_unique<AudioParameterChoice>(
+            ParameterID{ bandParamID(i, "type"), 1 },
             bandName + "Type",
             typeNames,
             defaultTypes[i]));
 
         // A 0.25-os skew teszi logaritmikussa a frekvencia-csuszkat.
-        layout.add (std::make_unique<AudioParameterFloat> (
-            ParameterID { bandParamID (i, "freq"), 1 },
+        layout.add(std::make_unique<AudioParameterFloat>(
+            ParameterID{ bandParamID(i, "freq"), 1 },
             bandName + "Freq",
-            NormalisableRange<float> (20.0f, 20000.0f, 0.0f, 0.25f),
+            NormalisableRange<float>(20.0f, 20000.0f, 0.0f, 0.25f),
             defaultFreqs[i],
-            AudioParameterFloatAttributes().withLabel ("Hz")));
+            AudioParameterFloatAttributes().withLabel("Hz")));
 
-        layout.add (std::make_unique<AudioParameterFloat> (
-            ParameterID { bandParamID (i, "gain"), 1 },
+        layout.add(std::make_unique<AudioParameterFloat>(
+            ParameterID{ bandParamID(i, "gain"), 1 },
             bandName + "Gain",
-            NormalisableRange<float> (-24.0f, 24.0f, 0.01f),
+            NormalisableRange<float>(-24.0f, 24.0f, 0.01f),
             0.0f,
-            AudioParameterFloatAttributes().withLabel ("dB")));
+            AudioParameterFloatAttributes().withLabel("dB")));
 
-        layout.add (std::make_unique<AudioParameterFloat> (
-            ParameterID { bandParamID (i, "q"), 1 },
+        layout.add(std::make_unique<AudioParameterFloat>(
+            ParameterID{ bandParamID(i, "q"), 1 },
             bandName + "Q",
-            NormalisableRange<float> (0.1f, 18.0f, 0.0f, 0.3f),
+            NormalisableRange<float>(0.1f, 18.0f, 0.0f, 0.3f),
             0.707f));
     }
 
-    layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { "outGain", 1 },
+    layout.add(std::make_unique<AudioParameterFloat>(
+        ParameterID{ "outGain", 1 },
         "Output",
-        NormalisableRange<float> (-24.0f, 24.0f, 0.01f),
+        NormalisableRange<float>(-24.0f, 24.0f, 0.01f),
         0.0f,
-        AudioParameterFloatAttributes().withLabel ("dB")));
+        AudioParameterFloatAttributes().withLabel("dB")));
 
     return layout;
 }
 
 //==============================================================================
-void EQ3AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void EQ3AudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
 
     juce::dsp::ProcessSpec spec;
-    spec.sampleRate       = sampleRate;
-    spec.maximumBlockSize = (juce::uint32) samplesPerBlock;
-    spec.numChannels      = (juce::uint32) getTotalNumOutputChannels();
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = (juce::uint32)samplesPerBlock;
+    spec.numChannels = (juce::uint32)getTotalNumOutputChannels();
 
     for (auto& band : bands)
-        band.prepare (spec);
+        band.prepare(spec);
 
-    outputGain.reset (sampleRate, 0.02);  // 20 ms-os simitas a zipper noise ellen
-    outputGain.setCurrentAndTargetValue (
-        juce::Decibels::decibelsToGain (apvts.getRawParameterValue ("outGain")->load()));
+    outputGain.reset(sampleRate, 0.02);  // 20 ms-os simitas a zipper noise ellen
+    outputGain.setCurrentAndTargetValue(
+        juce::Decibels::decibelsToGain(apvts.getRawParameterValue("outGain")->load()));
 
     updateBandsFromParameters();
 }
@@ -100,7 +100,7 @@ void EQ3AudioProcessor::releaseResources()
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
-bool EQ3AudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool EQ3AudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     const auto out = layouts.getMainOutputChannelSet();
 
@@ -116,62 +116,103 @@ void EQ3AudioProcessor::updateBandsFromParameters()
 {
     for (int i = 0; i < numBands; ++i)
     {
-        const auto type    = (EQBand::Type) (int) apvts.getRawParameterValue (bandParamID (i, "type"))->load();
-        const auto freq    = apvts.getRawParameterValue (bandParamID (i, "freq"))->load();
-        const auto gain    = apvts.getRawParameterValue (bandParamID (i, "gain"))->load();
-        const auto q       = apvts.getRawParameterValue (bandParamID (i, "q"))->load();
-        const auto enabled = apvts.getRawParameterValue (bandParamID (i, "on"))->load() > 0.5f;
+        const auto type = (EQBand::Type)(int)apvts.getRawParameterValue(bandParamID(i, "type"))->load();
+        const auto freq = apvts.getRawParameterValue(bandParamID(i, "freq"))->load();
+        const auto gain = apvts.getRawParameterValue(bandParamID(i, "gain"))->load();
+        const auto q = apvts.getRawParameterValue(bandParamID(i, "q"))->load();
+        const auto enabled = apvts.getRawParameterValue(bandParamID(i, "on"))->load() > 0.5f;
 
-        bands[(size_t) i].setParameters (type, freq, gain, q, enabled);
+        bands[(size_t)i].setParameters(type, freq, gain, q, enabled);
     }
 }
 
-void EQ3AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void EQ3AudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
-    // Kotelezo: kikapcsolja a denormal szamokat, amik brutalisan lassithatjak az IIR szurot.
     juce::ScopedNoDenormals noDenormals;
 
-    const auto totalNumInputChannels  = getTotalNumInputChannels();
+    const auto totalNumInputChannels = getTotalNumInputChannels();
     const auto totalNumOutputChannels = getTotalNumOutputChannels();
 
     for (int i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, buffer.getNumSamples());
+        buffer.clear(i, 0, buffer.getNumSamples());
 
     updateBandsFromParameters();
 
-    juce::dsp::AudioBlock<float> block (buffer);
+    juce::dsp::AudioBlock<float> block(buffer);
 
     for (auto& band : bands)
-        band.process (block);
+        band.process(block);
 
-    outputGain.setTargetValue (
-        juce::Decibels::decibelsToGain (apvts.getRawParameterValue ("outGain")->load()));
+    outputGain.setTargetValue(
+        juce::Decibels::decibelsToGain(apvts.getRawParameterValue("outGain")->load()));
 
-    buffer.applyGainRamp (0, buffer.getNumSamples(),
-                          outputGain.getCurrentValue(),
-                          outputGain.skip (buffer.getNumSamples()));
+    buffer.applyGainRamp(0, buffer.getNumSamples(),
+        outputGain.getCurrentValue(),
+        outputGain.skip(buffer.getNumSamples()));
+
+    // A kesz (EQ utani) jel az analizatornak
+    pushAnalyserSamples(buffer);
+}
+
+//==============================================================================
+void EQ3AudioProcessor::pushAnalyserSamples(const juce::AudioBuffer<float>& buffer)
+{
+    const auto numChannels = juce::jmin(2, buffer.getNumChannels());
+    if (numChannels == 0)
+        return;
+
+    // Csak annyit ir, amennyi hely van; ha a GUI nem olvas (pl. zarva az ablak),
+    // a felesleges mintak egyszeruen elvesznek - az audio szal soha nem var.
+    const auto scope = analyserFifo.write(buffer.getNumSamples());
+
+    auto copyMono = [&](int destStart, int size, int srcOffset)
+        {
+            for (int i = 0; i < size; ++i)
+            {
+                auto sample = buffer.getSample(0, srcOffset + i);
+                if (numChannels > 1)
+                    sample = 0.5f * (sample + buffer.getSample(1, srcOffset + i));
+
+                analyserBuffer[(size_t)(destStart + i)] = sample;
+            }
+        };
+
+    if (scope.blockSize1 > 0) copyMono(scope.startIndex1, scope.blockSize1, 0);
+    if (scope.blockSize2 > 0) copyMono(scope.startIndex2, scope.blockSize2, scope.blockSize1);
+}
+
+int EQ3AudioProcessor::readAnalyserSamples(float* dest, int maxNumSamples)
+{
+    const auto scope = analyserFifo.read(juce::jmin(maxNumSamples, analyserFifo.getNumReady()));
+
+    if (scope.blockSize1 > 0)
+        std::copy_n(analyserBuffer.begin() + scope.startIndex1, scope.blockSize1, dest);
+    if (scope.blockSize2 > 0)
+        std::copy_n(analyserBuffer.begin() + scope.startIndex2, scope.blockSize2, dest + scope.blockSize1);
+
+    return scope.blockSize1 + scope.blockSize2;
 }
 
 //==============================================================================
 juce::AudioProcessorEditor* EQ3AudioProcessor::createEditor()
 {
-    return new EQ3AudioProcessorEditor (*this);
+    return new EQ3AudioProcessorEditor(*this);
 }
 
 //==============================================================================
-void EQ3AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+void EQ3AudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    juce::MemoryOutputStream stream (destData, true);
-    apvts.state.writeToStream (stream);
+    juce::MemoryOutputStream stream(destData, true);
+    apvts.state.writeToStream(stream);
 }
 
-void EQ3AudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+void EQ3AudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    auto tree = juce::ValueTree::readFromData (data, (size_t) sizeInBytes);
+    auto tree = juce::ValueTree::readFromData(data, (size_t)sizeInBytes);
 
     if (tree.isValid())
     {
-        apvts.replaceState (tree);
+        apvts.replaceState(tree);
         updateBandsFromParameters();
     }
 }

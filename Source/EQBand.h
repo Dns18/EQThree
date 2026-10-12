@@ -38,9 +38,6 @@ public:
     //==============================================================================
     void prepare(const juce::dsp::ProcessSpec& spec)
     {
-        // Fontos: a filter.state mutatot NEM csereljuk le. A ProcessorDuplicator
-        // konstruktora mar letrehozta, es a csatornankenti szurok ezt az egy
-        // objektumot hasznaljak. Ha lecserelnenk, a szurok a regin maradnanak.
         sampleRate = spec.sampleRate;
         filter.prepare(spec);
         forceUpdate = true;
@@ -52,8 +49,6 @@ public:
         filter.reset();
     }
 
-    /** Beallitja a sav parametereit. Az egyutthatokat csak akkor szamolja ujra,
-        ha tenylegesen valtozott valami - ez blokkonkent sok felesleges munkat sporol meg. */
     void setParameters(Type newType, float newFreqHz, float newGainDb, float newQ, bool newEnabled)
     {
         const bool changed = forceUpdate
@@ -70,7 +65,6 @@ public:
 
         if (changed)
         {
-            // A meglevo objektum tartalmat irjuk felul -> nincs memoriafoglalas az audio szalon.
             *filter.state = makeArrayCoefficients(sampleRate, type, freqHz, gainDb, q);
             forceUpdate = false;
         }
@@ -103,7 +97,6 @@ public:
     {
         using AC = juce::dsp::IIR::ArrayCoefficients<float>;
 
-        // A bilinearis transzformacio miatt a frekvenciat a Nyquist ala kell szoritani.
         const auto nyquist = (float)(sampleRate * 0.5);
         const auto freq = juce::jlimit(10.0f, nyquist * 0.99f, freqHz);
         const auto quality = juce::jlimit(0.05f, 30.0f, q);
